@@ -1,0 +1,35 @@
+# Create a runner that provides ssh-agent forwarding as a resource
+#
+# name:       Name of the created runner
+# scoreMult:  Multiplier applied to score of baseRunner for a given Plan
+# baseRunner: The runner we will extend
+global def makeSSHAgentRunner name scoreMult baseRunner =
+  def key = "ssh-agent"
+  def envVar = "SSH_AUTH_SOCK"
+
+  def sshEnvResult = getenv envVar | getOrFail ("Environment variable '{envVar}' not set!")
+
+  def score plan =
+    def pieces = plan.getPlanResources | splitBy (_ ==~ key)
+    def found = pieces.getPairFirst
+    def newResources = pieces.getPairSecond
+    if found.empty then Fail "{name} only applies to Plans requiring resource '{key}'"
+    else
+      sshEnvResult
+      # If sshEnvResult is Fail, propagate, otherwise calculate score
+      | rmap (\_ setPlanResources newResources plan)
+      | rmapPass (baseRunner.getRunnerScore)
+      | rmap (scoreMult *. _)
+
+  def pre in =
+    def result = match sshEnvResult
+      Fail str = Fail str.makeError
+      Pass value =
+        in
+        | rmap (editRunnerInputEnvironment ("{envVar}={value}", _))
+    Pair result Unit
+
+  def post (Pair out Unit) = out
+
+  makeRunner name score pre post baseRunner
+
