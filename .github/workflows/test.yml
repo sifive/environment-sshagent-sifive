@@ -1,0 +1,26 @@
+name: Test
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+jobs:
+  test:
+    name: Wake scala compile
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Wit Init
+      uses: sifive/wit/actions/init@v0.13.2
+      with:
+        additional_packages: git@github.com:sifive/environment-blockci-sifive.git::0.7.0
+
+    - name: Wake Typecheck
+      uses: sifive/environment-blockci-sifive/actions/wake@0.7.0
+      with:
+        command: -x Unit
+
